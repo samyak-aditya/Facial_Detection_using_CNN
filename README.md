@@ -1,4 +1,4 @@
-# Emotion Detection using Facial Recognition amd CNN
+# Emotion Detection using Facial Recognition and CNN
 
 This project demonstrates facial detection combined with emotion detection using a Convolutional Neural Network (CNN) model trained with TensorFlow. Additionally, it predicts age, gender, and tracks eye movements.
 
