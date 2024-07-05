@@ -16,7 +16,7 @@ This project demonstrates facial detection combined with emotion detection using
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/emotion-detection.git
+    git clone https://github.com/samyak-aditya/Facial_Detection_using_CNN.git
     cd Facial_Detection_using_CNN
     ```
 
