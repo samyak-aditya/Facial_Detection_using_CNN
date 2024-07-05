@@ -1,11 +1,12 @@
 # Emotion Detection using Facial Recognition and CNN
 
-This project demonstrates facial detection combined with emotion detection using a Convolutional Neural Network (CNN) model trained with TensorFlow. Additionally, it predicts age, gender, and tracks eye movements.
+This project demonstrates facial detection combined with emotion detection using a Convolutional Neural Network (CNN) model trained with TensorFlow. Additionally, it predicts age, gender, tracks eye movements, and detects hand gestures.
 
 ## Requirements
 
 - Python 3.x
 - OpenCV
+- Mediapipe
 - Keras
 - TensorFlow
 - NumPy
@@ -22,7 +23,7 @@ This project demonstrates facial detection combined with emotion detection using
 2. **Install the required packages:**
 
     ```bash
-    pip install opencv-python-headless keras tensorflow numpy
+    pip install opencv-python-headless mediapipe keras tensorflow numpy
     ```
 
 3. **Download Pre-trained Models:**
@@ -44,8 +45,10 @@ This project demonstrates facial detection combined with emotion detection using
 
 ```python
 import cv2
+import mediapipe as mp
 from keras.models import load_model
 import numpy as np
+import time
 ```
 
 ### Loading trained Models
@@ -62,8 +65,12 @@ gender_model_prototxt = r'E:\gender_deploy.prototxt'
 gender_model_caffemodel = r'E:\gender_net.caffemodel'
 
 # Load age and gender models
-age_net = cv2.dnn.readNetFromCaffe(age_model_prototxt, age_model_caffemodel)
-gender_net = cv2.dnn.readNetFromCaffe(gender_model_prototxt, gender_model_caffemodel)
+try:
+    age_net = cv2.dnn.readNetFromCaffe(age_model_prototxt, age_model_caffemodel)
+    gender_net = cv2.dnn.readNetFromCaffe(gender_model_prototxt, gender_model_caffemodel)
+except Exception as e:
+    print("Error loading age and gender models:", e)
+    exit()
 ```
 
 ### Emotion Labels
@@ -77,6 +84,14 @@ emotion_labels = ('angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surpri
 ```python
 AGE_LIST = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
 GENDER_LIST = ['Male', 'Female']
+```
+
+### Mediapipe Hand Tracking Setup
+
+```python
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7, min_tracking_confidence=0.7)
+mp_drawing = mp.solutions.drawing_utils
 ```
 
 ### Functions
@@ -144,6 +159,23 @@ GENDER_LIST = ['Male', 'Female']
         return face
     ```
 
+- **Count Fingers and Detect Fist:**
+
+    ```python
+    def count_fingers_and_detect_fist(landmarks):
+        fingers = []
+        if landmarks[4].x < landmarks[3].x:
+            fingers.append(1)
+        else:
+            fingers.append(0)
+        for tip in [8, 12, 16, 20]:
+            if landmarks[tip].y < landmarks[tip - 2].y:
+                fingers.append(1)
+            else:
+                fingers.append(0)
+        return fingers.count(1)
+    ```
+
 ### Access Webcam and Main Loop
 
 ```python
@@ -159,7 +191,30 @@ while True:
         break
 
     frame_with_features = detect_features(frame)
-    cv2.imshow("Emotion Detection, Age, Gender, and Eye Tracking", frame_with_features)
+
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(rgb_frame)
+
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            num_fingers = count_fingers_and_detect_fist(hand_landmarks.landmark)
+            
+            wrist_x = int(hand_landmarks.landmark[0].x * frame.shape[1])
+            wrist_y = int(hand_landmarks.landmark[0].y * frame.shape[0])
+            
+            cv2.putText(frame, f"Fingers: {num_fingers}", (wrist_x, wrist_y - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            
+            if num_fingers == 0:
+                for i in range(3, 0, -1):
+                    cv2.putText(frame, f"Fist detected! Exiting in {i}...", (10, 100 + (3-i) * 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    cv2.imshow("Emotion Detection, Age, Gender, and Hand Tracking", frame)
+                    cv2.waitKey(1000)
+                video_capture.release()
+                cv2.destroyAllWindows()
+                exit()
+
+    cv2.imshow("Emotion Detection, Age, Gender, and Hand Tracking", frame_with_features)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
@@ -171,10 +226,3 @@ cv2.destroyAllWindows()
 ## Contributing
 
 If you'd like to contribute, please fork the repository and use a feature branch. Pull requests are warmly welcome.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details.
-
----
-
